@@ -14,15 +14,18 @@ import android.os.HandlerThread
 import android.view.Surface
 import android.view.TextureView
 import android.widget.ImageView
+import android.speech.tts.TextToSpeech
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.example.sightsense.ml.SsdMobilenetV11Metadata1
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
+import java.util.*
 
 @Suppress("DEPRECATION")
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     lateinit var labels:List<String>
     var colors = listOf(
@@ -37,9 +40,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraManager: CameraManager
     lateinit var textureView: TextureView
     lateinit var model:SsdMobilenetV11Metadata1
+    private var tts: TextToSpeech? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        tts = TextToSpeech(this, this)
         setContentView(R.layout.activity_main)
         getPermission()
 
@@ -92,6 +97,7 @@ class MainActivity : AppCompatActivity() {
                         canvas.drawRect(RectF(locations[x+1] *w, locations[x] *h, locations[x+3] *w, locations[x+2] *h), paint)
                         paint.style = Paint.Style.FILL
                         canvas.drawText(labels[classes[index].toInt()] +" "+fl.toString(), locations[x+1] *w, locations[x] *h, paint)
+                        obstacleWarning("Careful there is a nearby"+labels[classes[index].toInt()])
                     }
                 }
 
@@ -107,6 +113,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        if (tts != null) {
+            tts!!.stop()
+            tts!!.shutdown()
+        }
         model.close()
     }
 
@@ -141,6 +151,10 @@ class MainActivity : AppCompatActivity() {
         }, handler)
     }
 
+    fun obstacleWarning(prompt: String) {
+        tts!!.speak(prompt, TextToSpeech.QUEUE_FLUSH, null,"")
+    }
+
     private fun getPermission(){
         if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
             requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 101)
@@ -154,6 +168,16 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if(grantResults[0] != PackageManager.PERMISSION_GRANTED){
             getPermission()
+        }
+    }
+
+    override fun onInit(p0: Int) {
+        if (p0 == TextToSpeech.SUCCESS) {
+            val result = tts!!.setLanguage(Locale.US)
+
+            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                Log.e("TTS","The Language not supported!")
+            }
         }
     }
 }
