@@ -1,2 +1,2 @@
 ### SightSense
-This the Android app for the SightSense glasses
+This is the Android app for the SightSense glasses
